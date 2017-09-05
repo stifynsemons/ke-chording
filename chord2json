@@ -1,0 +1,230 @@
+#!/usr/bin/perl
+use feature 'unicode_strings';
+use Encode;
+use utf8;
+
+chord2json(@ARGV);
+
+sub chord2json {
+    my $fh;
+    my %used;
+    my($sum, $frq, $hfrq, $wfrq) = read_frequency_table("frequency.table");
+    open($ofh, ">savings.table");
+    my $header = shift(@_);
+    my $footer = shift(@_);
+    @ARGV = @_;
+    system("cat $header");
+    my(@chords, %lset, %cond, %in_use, $savings, %chord_of);
+    while ($_=decode('UTF-8', <>)) {
+	chomp;
+	next if /^\#/;
+	next if /^\s*$/;
+	my($chord, $seq) = split(/\s+/, $_);
+	$chord_of{$chord} = $seq;
+	if (defined $in_use{$chord} && $in_use{$chord} ne $seq) {
+	    die "Duplicate chord definition with incompatible values (chord=$chord, old=$in_use{$chord}, new=$seq\n";
+	}
+	my($keyword) = ($seq =~ /^\!?([\w']+)␣$/);
+	if ($frq->{$keyword}) {
+	    $r_length = length($seq);
+	    $r_keyword = length($chord);
+	    my $t_savings = ($r_length - $r_keywork)*$frq->{$keyword};
+	    $savings += $t_savings;
+	    $used{$keyword}++;
+	    print $ofh sprintf("%-15s %8.3f %8.3f %8.3f%%\n", $keyword, $frq->{$keyword}, $t_savings, $t_savings/$sum*100);
+	}
+	$in_use{$chord} = $seq;
+	if (length($chord) == 2) {
+	    my($layer, $key) = ($chord =~ /^(.+)(.)$/);
+	    $layer = demap($layer);
+	    $key = demap($key);
+	    $lset{$layer}++;
+	    $cond->{$key}{$layer}++;
+	    push(@chords, build_chord($layer, $key, $seq));
+	}
+	elsif (length($chord) == 1) {
+	    $chord = demap($chord);
+	    push(@chords, build_chord(undef, $chord, $seq));
+	}
+	elsif (length($chord) == 3) {
+	    my($layer, $key) = ($chord =~ /^(.+)(.)$/);
+	    $key = demap($key);
+	    $backup = $chord_of{$layer};
+	    if (!defined $backup) { 
+		print STDERR "Did not find a backup chord for '$layer'\n";
+	    }
+	    my($l1, $l2) = split(//, $layer);
+	    $l1 = demap($l1);
+	    $l2 = demap($l2);
+	    $layer = "${l1}__$l2";
+	    $lset{$layer}++;
+	    $cond->{$key}{$layer}++;
+	    push(@chords, build_chord($layer, $key, $seq));
+	}
+	else {
+	    die "Chord $chord not valid. Only length 2 chords are supported. \n";
+	}
+    }
+    foreach $layer (sort keys %lset) {
+	my $orig_chord = $layer;
+	$orig_chord =~ s/__//g;
+	my $ljson = build_layer($layer, $cond, $chord_of{$orig_chord});
+	print "$ljson,\n";
+    }
+    print join(",\n", @chords) . "\n";
+    system("cat $footer");
+    print $ofh sprintf("Total savings               %8.3f\n", $savings);
+    print $ofh sprintf("Weighted pool of characters %8.3f\n", $sum);
+    print $ofh sprintf("Fraction remaining          %8.3f%%\n", 100*($sum-$savings)/$sum);
+    close $ofh;
+    open($ofh, ">missed.table");
+    foreach my $word (sort {$hfrq->{$b} <=> $hfrq->{$a}} keys %$hfrq) {
+	print $ofh sprintf("%-20s %8.3f%%\n", $word, $hfrq->{$word}) unless $used{$word}; 
+    }
+    close $ofh;
+}
+
+sub build_chord {
+    my($layer, $key, $seq) = @_;
+    my $chord;
+    if (defined $layer) {
+	$chord = join("", " " x 16 . '{   "conditions": [ { "type": "variable_if", "name": "seq_',
+		      $layer . '", "value": 1} ], "from": { "key_code": "' . $key . "\"},\n",
+		      " " x 20 . '"type": "basic", "to": [ ');
+    }
+    else {
+	$chord = join("", " " x 16 . '{   "from": { "key_code": "' . $key . "\"},\n",
+		      " " x 20 . '"type": "basic", "to": [ ');
+    }
+    my(@keycodes);
+    my @modifiers;
+    foreach $char (split(//, $seq)) {
+	my $key_name = demap($char);
+	if (is_modifier($key_name)) { push(@modifiers, is_modifier($key_name)); next; }
+	elsif (length($key_name) < 1 || $key_name !~ /^[a-z0-9_]+$/) {
+	    die "Unknown character '$key_name' in output sequence $seq for chord\n$chord".join(", ", @keycodes)."\n";
+	}
+	my $kc = '{ "key_code": "' . $key_name . '"';
+	if (@modifiers) {
+	    $kc .= ', "modifiers": [' . join(', ', @modifiers) . ']';
+	}
+	@modifiers = ();
+	push(@keycodes, $kc . ' }');
+    }
+    $chord .= join(", ", @keycodes) . " ] }";
+    return $chord;
+}
+
+sub build_key_seq {
+    my($seq) = @_;
+    my $output = '[ ';
+    my(@keycodes);
+    my @modifiers;
+    foreach $char (split(//, $seq)) {
+	my $key_name = demap($char);
+	if (is_modifier($key_name)) { push(@modifiers, is_modifier($key_name)); next; }
+	elsif (length($key_name) < 1 || $key_name !~ /^[a-z0-9_]+$/) {
+	    die "Unknown character '$key_name' in output sequence $seq for chord\n$chord".join(", ", @keycodes)."\n";
+	}
+	my $kc = '{ "key_code": "' . $key_name . '"';
+	if (@modifiers) {
+	    $kc .= ', "modifiers": [' . join(', ', @modifiers) . ']';
+	}
+	@modifiers = ();
+	push(@keycodes, $kc . ' }');
+    }
+    $output .= join(", ", @keycodes) . " ]"; 
+    return $output;
+}
+
+sub build_layer {
+    my($layer, $cond, $backup) = @_;
+#    print STDERR "'$layer' has backup chord of '$backup'\n";
+    my $ljson = " " x 16 . '{   "description": "Set ' . $layer . ' layer", "type": "basic", ';
+    my($l1, $l2) = ($layer =~ /__/) ? split('__', $layer) : ($layer, $layer);
+    my(@c) = ($layer =~ /__/) ? ('{ "type": "variable_if", "name": ' . '"seq_' . $l1 . '", "value": 1}') : ();
+    if ($cond->{$layer}) {
+	foreach my $clayer (sort keys %{$cond->{$layer}}) {
+	    push(@c, '{ "type": "variable_if", "name": ' . '"seq_' . $clayer . '", "value": 0}');
+	}
+    }
+    if (@c) {
+	$ljson .= '"conditions": [ ' . join(', ', @c) . " ],\n";
+    }
+    else { $ljson .= "\n"; }
+    if (!$backup) { $backup = $l2; }
+    my $key_seq;
+    if ($backup =~ /_/ || $backup =~ /backslash|comma|semicolon|period|hyphen|quote/) {
+	$key_seq = '[ { "key_code": "'.$backup.'" } ]';
+    }
+    else { $key_seq = build_key_seq($backup); }
+    $ljson .= " " x 20 . '"from": { "key_code": "' . $l2 . '" }, "to_if_alone": ' . "$key_seq,\n";
+    $ljson .= " " x 20 . '"to": [ { "set_variable": { "name": "seq_' . $layer . '", "value": 1 } } ],' . "\n";
+    $ljson .= " " x 20 . '"to_after_key_up": [ { "set_variable": { "name": "seq_' . $layer . '", "value": 0 } } ] }';
+    return $ljson;
+}   
+
+sub demap {
+    my($c) = @_;
+    $c =~ s/⌫/delete_or_backspace/;
+    $c =~ s/␣/spacebar/;
+    $c =~ s/⎋/escape/;
+    $c =~ s/↵/return_or_enter/;
+    $c =~ s/←/left_arrow/;
+    $c =~ s/→/right_arrow/;
+    $c =~ s/↑/up_arrow/;
+    $c =~ s/↓/down_arrow/;
+    $c =~ s/\./period/;
+    $c =~ s/-/hyphen/;
+    $c =~ s/\,/comma/;
+    $c =~ s/\//slash/;
+    $c =~ s/\;/semicolon/;
+    $c =~ s/\`/grave_accent_and_tilde/;
+    $c =~ s/\'/quote/;
+    $c =~ s/=/equal_sign/;
+    $c =~ s/\[/open_bracket/;
+    $c =~ s/\]/close_bracket/;
+    $c =~ s/\\/backslash/;
+    return $c;
+}
+
+sub expand_seq {
+    my($seq) = @_;
+    while($seq =~ /\!(.)/) {
+	my $ch = $1;
+	my $out_ch = $ch;
+	$out_ch =~ tr/1234567890\-/!@#$%^&*()_/;
+	$seq =~ s/\!(.)/$out_ch/;
+    }
+    return $seq;
+}
+
+sub is_modifier {
+    my($key_name) = @_;
+    if ($key_name eq '!') { return '"left_shift"'; }
+    elsif ($key_name eq '^') { return '"left_ctrl"'; }
+    elsif ($key_name eq '@') { return '"left_command"'; }
+    elsif ($key_name eq '%') { return '"left_option"'; }
+    elsif ($key_name eq '~') { return '"function"'; }
+    return 0;
+}
+
+sub read_frequency_table {
+    my($fn) = @_;
+    my $fh;
+    my $frq = {};
+    my $hfrq = {};
+    my $wfrq = {};
+    if (-e $fn) {
+	open($fh, $fn) or die "Cannot read $fn\n";
+	while(<$fh>) {
+	    my($word, $n, $f) = split(' ', $_);
+	    $frq->{$word} = $f;
+	    $wfrq->{$word} = $f*(length($word)+1);
+	    $sum += $wfrq->{$word};
+	    if ($frq->{$word} > 0.01) { $hfrq->{$word}=$frq->{$word}; }
+	}
+	close($fh);
+    }
+    return($sum, $frq, $wfrq, $hfrq);
+}

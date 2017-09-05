@@ -1,0 +1,10 @@
+#!/usr/bin/perl
+
+my $w = shift(@ARGV);
+open($fh, "frequency.table") or die "Cannot read frequency.table\n";
+while(<$fh>) {
+    my($word, $n, $f) = split(' ', $_);
+    last if $f < 0.001;
+    if (substr($w, 0, 1) eq substr($word, 0, 1)) { print $_; }
+}
+close($fh);

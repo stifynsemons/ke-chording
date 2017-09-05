@@ -1,0 +1,25 @@
+#!/usr/bin/perl
+
+my $comp_fn = "chord.components";
+if (!-e $comp_fn) {
+   die "Missing component file, $comp_fn\n";
+}
+open($fh, $comp_fn) or die "Cannot read $comp_fn\n";
+my(@comp) = <$fh>;
+close($fh);
+
+foreach my $c (@comp) {
+    chomp $c;
+    my $fn = "$c.chords";
+    if (-e $fn) {
+	push(@build, $fn);
+    }
+}
+my $exit = system("./chord2json ke.header ke.footer @build > karabiner.json");
+if ($exit) {
+    die "Error in chord2json\n";
+}
+print "Installing new karabiner.json\n";
+system("mv karabiner.json ..");
+#print "Calculating estimated keystroke reduction\n";
+system("tail -3 savings.table");
