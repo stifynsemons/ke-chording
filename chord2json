@@ -73,15 +73,17 @@ sub chord2json {
     }
     print join(",\n", @chords) . "\n";
     system("cat $footer");
-    print $ofh sprintf("Total savings               %8.3f\n", $savings);
-    print $ofh sprintf("Weighted pool of characters %8.3f\n", $sum);
-    print $ofh sprintf("Fraction remaining          %8.3f%%\n", 100*($sum-$savings)/$sum);
-    close $ofh;
-    open($ofh, ">missed.table");
-    foreach my $word (sort {$hfrq->{$b} <=> $hfrq->{$a}} keys %$hfrq) {
-	print $ofh sprintf("%-20s %8.3f%%\n", $word, $hfrq->{$word}) unless $used{$word}; 
+    if ($sum != 0) {
+	print $ofh sprintf("Total savings               %8.3f\n", $savings);
+	print $ofh sprintf("Weighted pool of characters %8.3f\n", $sum);
+	print $ofh sprintf("Fraction remaining          %8.3f%%\n", 100*($sum-$savings)/$sum);
+	close $ofh;
+	open($ofh, ">missed.table");
+	foreach my $word (sort {$hfrq->{$b} <=> $hfrq->{$a}} keys %$hfrq) {
+	    print $ofh sprintf("%-20s %8.3f%%\n", $word, $hfrq->{$word}) unless $used{$word}; 
+	}
+	close $ofh;
     }
-    close $ofh;
 }
 
 sub build_chord {
