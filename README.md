@@ -26,3 +26,25 @@ run ./build_chords
 This will update the karabiner.json file which karabiner will automatically re-read. The build script will use the simplified file list to estimate the effectiveness of your chord set for typing English, as well as generate a list of common words that you don't support in the missing.table. If you would like to try this against another language or a better English source, update frequency.table.
 
 For a simplified list for English, look at english.chords
+
+## Learning to use chords
+
+In order for chords to be effective, they must be easy to remember, common words, and easy on the hands. We'll use the basic english.chords as an example. To make them memorable, they normally start with the first letter of the word and finish with the most distinctive letter that is not already taken.
+
+For two letter words - this is easy. Use both letters and that's it. It is only a 3 for 2 exchange with the space added, but it is still worthwhile. The two letter words are:
+```
+an as at be by do go he if in it me my no of on or so to up us we
+```
+Next come the most common longer words. For the longer words, the capital letters are the letters of the chord. These ten most common are divided into three groups - first+second letter, first+middle letter, and first+last letter.
+```
+THe BUt HIs WIth ... ThAt ... AnD WaS FoR HaD YoU NoT
+```
+Remember that each of these words comes with an attached space after it. You may be wondering at this point, what happens when you need to finish a sentence with a period, or use other punctuation. There is a remedy: the edit chords. Suppose you type a sentence,
+```
+HE␣HaD␣YoU␣AT␣GO␣
+```
+Notice the space separator, which is a unicode symbol. The same character is used when defining chords. Not a lot of savings (10/17), because it is all made of short words from the list. But it is wrong, because you need a period after the GO, not a space. In this case type the chord: delete-period, or ⌫., which erases the trailing space, adds a period, then puts the trailing space back. After a two letter word, it is not much help. You could have type GO.␣ instead of GO⌫. And, with longer chords, it starts to add up. You'll find this much more effective with endings like, ⌫g, which appends 'ing' to the end and restores the space.
+
+
+
+
