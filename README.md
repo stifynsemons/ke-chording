@@ -1,5 +1,5 @@
 # ke-chording
-Extend Karabiner-Elements to support chording
+## Extend Karabiner-Elements to support chording
 
 The ke-chording project generates configuration files for Karabiner-Elements that add chording support to a Mac Keyboard. With typical keyboard software, re-mapping for keys is one-for-one. You type one key, you get one key. Some support modifiers, which give multiple meanings to a key; and it is not uncommon for these to outputs to be words (or other sequences of characters). Karabiner-Elements allows a very generic extension to this concept - remapping pairs of keys, or triplets, or larger sequences, into words or phrases or other sequences. 
 
@@ -13,11 +13,15 @@ Regular single keypresses still work, so if you can't remember a chord, you can 
 
 At present, ke-chording provides support for pairs and triplet chords, with conflict detection. 
 
+## Installation
+
 To build it:
->  clone this project into your ~/.config/karabiner directory
->  edit the chord.components file to the list of .chords files that you want to include
->  edit ke.header and ke.footer to include the other features of Karabiner-Element that you want - it needs to split so that ke.header includes all of your complex manipulators, and ke.footer contains the rest of your standard file. This is a priority to cleanup - build_chords should determine these from your existing file.
->  run ./build_chords
+```
+clone this project into your ~/.config/karabiner directory
+edit the chord.components file to the list of .chords files that you want to include
+edit ke.header and ke.footer to include the other features of Karabiner-Element that you want - it needs to split so that ke.header includes all of your complex manipulators, and ke.footer contains the rest of your standard file. This is a priority to cleanup - build_chords should determine these from your existing file.
+run ./build_chords
+```
 
 This will update the karabiner.json file which karabiner will automatically re-read. The build script will use the simplified file list to estimate the effectiveness of your chord set for typing English, as well as generate a list of common words that you don't support in the missing.table. If you would like to try this against another language or a better English source, update frequency.table.
 
