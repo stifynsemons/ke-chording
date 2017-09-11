@@ -14,8 +14,18 @@ sub chord2json {
     my $footer = shift(@_);
     @ARGV = @_;
     system("cat $header");
-    my(@chords, %lset, %cond, %in_use, $savings, %chord_of);
+    my(@chords, %lset, %cond, %chord_cond, %in_use, $savings, %chord_of, @chord_defs);
     while ($_=decode('UTF-8', <>)) {
+	my($chord, $seq) = split(/\s+/, $_);
+	if (length($chord) == 3) {
+	    my($l1, $l2, $l3) = grep($_=demap($_), split(//, $chord));
+	    $chord_cond->{"$l1$l3"}{"${l1}__$l2"}++;
+#	    print STDERR "Restricting layer"
+	    $cond->{"${l1}__$l3"}{"${l1}__$l2"}++;
+	}
+	push(@chord_defs, $_);
+    }
+    while ($_=shift(@chord_defs)) {
 	chomp;
 	next if /^\#/;
 	next if /^\s*$/;
@@ -40,7 +50,7 @@ sub chord2json {
 	    $key = demap($key);
 	    $lset{$layer}++;
 	    $cond->{$key}{$layer}++;
-	    push(@chords, build_chord($layer, $key, $seq));
+	    push(@chords, build_chord([$layer, keys %{$chord_cond->{"$layer$key"}}], $key, $seq));
 	}
 	elsif (length($chord) == 1) {
 	    $chord = demap($chord);
@@ -50,16 +60,13 @@ sub chord2json {
 	    my($layer, $key) = ($chord =~ /^(.+)(.)$/);
 	    $key = demap($key);
 	    $backup = $chord_of{$layer};
-	    if (!defined $backup) { 
-		print STDERR "Did not find a backup chord for '$layer'\n";
-	    }
-	    my($l1, $l2) = split(//, $layer);
-	    $l1 = demap($l1);
-	    $l2 = demap($l2);
+	    if (!defined $backup) { print STDERR "Did not find a backup chord for '$layer'\n"; }
+	    my($l1, $l2) = grep($_=demap($_), split(//, $layer));
 	    $layer = "${l1}__$l2";
 	    $lset{$layer}++;
 	    $cond->{$key}{$layer}++;
-	    push(@chords, build_chord($layer, $key, $seq));
+	    $chord_cond->{"$l1$key"}{$layer}++;
+	    push(@chords, build_chord([$layer], $key, $seq));
 	}
 	else {
 	    die "Chord $chord not valid. Only length 2 chords are supported. \n";
@@ -89,9 +96,15 @@ sub chord2json {
 sub build_chord {
     my($layer, $key, $seq) = @_;
     my $chord;
-    if (defined $layer) {
-	$chord = join("", " " x 16 . '{   "conditions": [ { "type": "variable_if", "name": "seq_',
-		      $layer . '", "value": 1} ], "from": { "key_code": "' . $key . "\"},\n",
+    if (ref $layer) {
+	my($cond1, @cond0) = @$layer;
+	my(@conds) = '{ "type": "variable_if", "name": "seq_' . $cond1 . '", "value": 1}';
+	foreach my $cond (@cond0) {
+	    print STDERR "Restricting $cond1 ($key) with $cond\n";
+	    push(@conds, '{ "type": "variable_if", "name": "seq_' . $cond . '", "value": 0}');
+	}
+	my $conds = join(", ", @conds);
+	$chord = join("", " " x 16 . '{   "conditions": [ ' . $conds . ' ], "from": { "key_code": "' . $key . "\"},\n",
 		      " " x 20 . '"type": "basic", "to": [ ');
     }
     else {
@@ -104,7 +117,8 @@ sub build_chord {
 	my $key_name = demap($char);
 	if (is_modifier($key_name)) { push(@modifiers, is_modifier($key_name)); next; }
 	elsif (length($key_name) < 1 || $key_name !~ /^[a-z0-9_]+$/) {
-	    die "Unknown character '$key_name' in output sequence $seq for chord\n$chord".join(", ", @keycodes)."\n";
+	    die "Unknown character '$key_name' in output sequence $seq for chord\n$chord".
+		join(", ", @keycodes)."\n";
 	}
 	my $kc = '{ "key_code": "' . $key_name . '"';
 	if (@modifiers) {
@@ -126,7 +140,8 @@ sub build_key_seq {
 	my $key_name = demap($char);
 	if (is_modifier($key_name)) { push(@modifiers, is_modifier($key_name)); next; }
 	elsif (length($key_name) < 1 || $key_name !~ /^[a-z0-9_]+$/) {
-	    die "Unknown character '$key_name' in output sequence $seq for chord\n$chord".join(", ", @keycodes)."\n";
+	    die "Unknown character '$key_name' in output sequence $seq for chord\n$chord".
+		join(", ", @keycodes)."\n";
 	}
 	my $kc = '{ "key_code": "' . $key_name . '"';
 	if (@modifiers) {
@@ -204,7 +219,7 @@ sub expand_seq {
 sub is_modifier {
     my($key_name) = @_;
     if ($key_name eq '!') { return '"left_shift"'; }
-    elsif ($key_name eq '^') { return '"left_ctrl"'; }
+    elsif ($key_name eq '^') { return '"left_control"'; }
     elsif ($key_name eq '@') { return '"left_command"'; }
     elsif ($key_name eq '%') { return '"left_option"'; }
     elsif ($key_name eq '~') { return '"function"'; }
