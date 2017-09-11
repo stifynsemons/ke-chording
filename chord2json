@@ -100,7 +100,7 @@ sub build_chord {
 	my($cond1, @cond0) = @$layer;
 	my(@conds) = '{ "type": "variable_if", "name": "seq_' . $cond1 . '", "value": 1}';
 	foreach my $cond (@cond0) {
-	    print STDERR "Restricting $cond1 ($key) with $cond\n";
+#	    print STDERR "Restricting $cond1 ($key) with $cond\n";
 	    push(@conds, '{ "type": "variable_if", "name": "seq_' . $cond . '", "value": 0}');
 	}
 	my $conds = join(", ", @conds);
