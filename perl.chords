@@ -1,4 +1,19 @@
 2-	!2!-
+2c	!2candidates
 31	!3!1/usr/bin/perl↵
+3p	⎋xcperl-mode↵
+# standard variables
+4,	!4min␣
+4.	!4max␣
 []	![!]←
 ⌫9	⌫!9!0←
+e;	^e;↓^a^i
+e]	^e![!]←
+↵;	^e;↵^i
+↵[	^e![!]←↵^i^a←↵^i
+-.	-!.
+=-	!=!=
+.[	-!.![!]←
+./	␣.␣
+'↵	!'!'←
+g,	⌫→,␣
