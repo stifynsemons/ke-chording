@@ -191,6 +191,15 @@ sub demap {
     $c =~ s/→/right_arrow/;
     $c =~ s/↑/up_arrow/;
     $c =~ s/↓/down_arrow/;
+    $c =~ s/↹/tab/;
+    $c =~ s/⌘/left_command/;
+    $c =~ s/⌥/left_option/;
+    $c =~ s/⎈/left_control/;
+    $c =~ s/⇧/left_shift/;
+    $c =~ s/⇯/caps_lock/;
+    $c =~ s/↾/right_shift/;
+    $c =~ s/⌑/right_command/;
+    $c =~ s/⌬/right_option/;
     $c =~ s/\./period/;
     $c =~ s/-/hyphen/;
     $c =~ s/\,/comma/;
