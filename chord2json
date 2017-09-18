@@ -37,7 +37,7 @@ sub chord2json {
 	next if $chord =~ /^\s*$/;
 	$chord_of{$chord} = $seq;
 	if (defined $in_use{$chord} && $in_use{$chord} ne $seq) {
-	    die "Duplicate chord definition with incompatible values (chord=$chord, old=$in_use{$chord}, new=$seq\n";
+	    die "Duplicate chord definition with incompatible values (chord=$chord, old=$in_use{$chord}, new=$seq)\n";
 	}
 	my($keyword) = ($seq =~ /^\!?([\w']+)␣$/);
 	if ($frq->{$keyword}) {
@@ -227,6 +227,10 @@ sub expand_chord_def {
     while ($str =~ /\(([^\)]+)\)\*(\d+)/) {
 	my $repl = $1 x $2;
 	$str =~ s/\(([^\)]+)\)\*(\d+)/$repl/;
+    }
+    while ($str =~ /(.)\*(\d+)/) {
+	my $repl = $1 x $2;
+	$str =~ s/(.)\*(\d+)/$repl/;
     }
     return $str;
 }
