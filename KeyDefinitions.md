@@ -8,6 +8,17 @@ For these reasons, the other keys on the keyboard are represented by a select gr
 
 '↵   !'!'←
 
+Here are the list of characters with special functions:
+```
+whitespace      separates chord from output sequence
+!               apply left_shift to the next character
+@               apply left_command to the next character
+#               at the beginning of a line, begins a comment
+%               apply left_option to the next character
+^               apply left_control to the next character
+~               apply function to the next character
+```
+
 The list of currently supported chord characters, aside from the self-representing ones, is listed below:
 
 ```
