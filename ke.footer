@@ -18,14 +18,6 @@
         "name": "V9a",
         "selected": false,
         "simple_modifications": {
-            "a": "f",
-            "d": "a",
-            "f": "delete_or_backspace",
-            "j": "o",
-            "k": "p",
-            "o": "d",
-            "p": "k",
-            "v": "left_control"
         },
         "virtual_hid_keyboard": {
             "caps_lock_delay_milliseconds": 0,
