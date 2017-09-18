@@ -3,6 +3,14 @@ use feature 'unicode_strings';
 use Encode;
 use utf8;
 
+# syntax proposals
+# chord range: 
+#    KEY*M-N         (OUT)*
+# mode chords:
+#    CHORD:CHORD     OUT
+# sticky modifier chords:
+#    CHORD|MODIFIER|KEYS  
+
 chord2json(@ARGV);
 
 sub chord2json {
@@ -16,20 +24,17 @@ sub chord2json {
     system("cat $header");
     my(@chords, %lset, %cond, %chord_cond, %in_use, $savings, %chord_of, @chord_defs);
     while ($_=decode('UTF-8', <>)) {
-	my($chord, $seq) = split(/\s+/, $_);
+	my($chord, $seq) = split(/\s+/, expand_chord_def($_));
 	if (length($chord) == 3) {
 	    my($l1, $l2, $l3) = grep($_=demap($_), split(//, $chord));
 	    $chord_cond->{"$l1$l3"}{"${l1}__$l2"}++;
-#	    print STDERR "Restricting layer"
 	    $cond->{"${l1}__$l3"}{"${l1}__$l2"}++;
 	}
 	push(@chord_defs, $_);
     }
     while ($_=shift(@chord_defs)) {
-	chomp;
-	next if /^\#/;
-	next if /^\s*$/;
-	my($chord, $seq) = split(/\s+/, $_);
+	my($chord, $seq) = split(/\s+/, expand_chord_def($_));
+	next if $chord =~ /^\s*$/;
 	$chord_of{$chord} = $seq;
 	if (defined $in_use{$chord} && $in_use{$chord} ne $seq) {
 	    die "Duplicate chord definition with incompatible values (chord=$chord, old=$in_use{$chord}, new=$seq\n";
@@ -171,7 +176,7 @@ sub build_layer {
     else { $ljson .= "\n"; }
     if (!$backup) { $backup = $l2; }
     my $key_seq;
-    if ($backup =~ /_/ || $backup =~ /backslash|comma|semicolon|period|hyphen|quote/) {
+    if ($backup =~ /_/ || $backup =~ /backslash|comma|semicolon|period|hyphen|quote|spacebar/) {
 	$key_seq = '[ { "key_code": "'.$backup.'" } ]';
     }
     else { $key_seq = build_key_seq($backup); }
@@ -212,6 +217,18 @@ sub demap {
     $c =~ s/\]/close_bracket/;
     $c =~ s/\\/backslash/;
     return $c;
+}
+
+sub expand_chord_def {
+    my($str) = @_;
+    chomp $str;
+    $str =~ s/\#.*$//;
+    return $str if $str =~ /^\s*$/;
+    while ($str =~ /\(([^\)]+)\)\*(\d+)/) {
+	my $repl = $1 x $2;
+	$str =~ s/\(([^\)]+)\)\*(\d+)/$repl/;
+    }
+    return $str;
 }
 
 sub expand_seq {
