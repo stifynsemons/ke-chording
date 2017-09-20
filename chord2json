@@ -32,7 +32,9 @@ sub chord2json {
 	}
 	push(@chord_defs, $_);
     }
+    my $ztab = {};
     while ($_=shift(@chord_defs)) {
+	sequencer($ztab, $_);
 	my($chord, $seq) = split(/\s+/, expand_chord_def($_));
 	next if $chord =~ /^\s*$/;
 	$chord_of{$chord} = $seq;
@@ -96,6 +98,13 @@ sub chord2json {
 	}
 	close $ofh;
     }
+    open(ZT, ">output.ztab") or die "Cannot create output.ztab\n";
+    foreach my $key (sort keys %$ztab) {
+	print ZT "$key uk=(" . join(", ", sort keys %{$ztab->{$key}{used_by}}) . ") ";
+	print ZT "bk=(" . join(", ", sort keys %{$ztab->{$key}{blocked_by}}) . ") ";
+	print ZT "type=$ztab->{$key}{type} output=$ztab->{$key}{output}\n";
+    }
+    close(ZT);
 }
 
 sub build_chord {
@@ -184,7 +193,17 @@ sub build_layer {
     $ljson .= " " x 20 . '"to": [ { "set_variable": { "name": "seq_' . $layer . '", "value": 1 } } ],' . "\n";
     $ljson .= " " x 20 . '"to_after_key_up": [ { "set_variable": { "name": "seq_' . $layer . '", "value": 0 } } ] }';
     return $ljson;
-}   
+}
+
+sub build_trigger {
+    my($trigger, $cond) = @_;
+    my $t_name = '"name": "seq_' . $trigger .'"';
+    my($t1, $t2) = grep(demap($_), split(//, $trigger));
+    my $ljson = " " x 16 . '{   "description": "Generate trigger for $trigger", ' . "\n";
+    $ljson .= " " x 20 . '"from": { "key_code": "'.$t1.'" },';
+    $ljson .= " " x 20 . '"to": {';
+}
+
 
 sub demap {
     my($c) = @_;
@@ -278,4 +297,41 @@ sub read_frequency_table {
 	close($fh);
     }
     return($sum, $frq, $wfrq, $hfrq);
+}
+
+sub sequencer {
+    my($ztab, $def) = @_;
+    #    my(@defs) = expand_def($def);
+    my(@defs) = (expand_chord_def($def));
+    if (scalar(@defs) > 1) {
+	foreach my $d (@defs) { generator($ztab, $d); }
+	return;
+    }
+    my($chord, $seq) = split(' ', $defs[0]);
+    my(@chord_seq, $build_chord, $name);
+    foreach my $char (split(//, $chord)) {
+	$name = join('__', @chord_seq);
+	if ($char eq ':') { # nesting layer
+	    if (scalar(@chord_seq) == 0) {
+		die "Chord definition $chord (generating $seq) cannot start with a :, ".
+		    "because there is nothing to nest on\n";
+	    }
+	    if ($ztab->{$name}{type} ne 'nest') {
+		die "Chord definition $chord (generating $seq) cannot nest at $name ".
+		    "because that conflicts with previous usage\n";
+	    }
+	    $ztab->{$name}{type} = 'nest';
+	}
+	else { # non-nesting layer
+	    push(@chord_seq, demap($char));
+	    if ($name) {
+		$ztab->{$char}{used_by}{$name}++;
+		$ztab->{$name}{blocked_by}{$char}++;
+		$ztab->{$name}{type} = 'layer';
+	    }
+	}
+    }
+    $name = join('__', @chord_seq);
+    $ztab->{$name}{output} = $seq;
+    return $ztab;
 }
