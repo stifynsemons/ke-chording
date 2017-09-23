@@ -76,7 +76,7 @@ sub chord2json {
 	    push(@chords, build_chord([$layer], $key, $seq));
 	}
 	else {
-	    die "Chord $chord not valid. Only length 2 chords are supported. \n";
+#	    die "Chord $chord not valid. Only length 2 chords are supported. \n";
 	}
     }
     foreach $layer (sort keys %lset) {
@@ -93,9 +93,9 @@ sub chord2json {
 	print $ofh sprintf("Fraction remaining          %8.3f%%\n", 100*($sum-$savings)/$sum);
 	close $ofh;
 	open($ofh, ">missed.table");
-	foreach my $word (sort {$hfrq->{$b} <=> $hfrq->{$a}} keys %$hfrq) {
-	    print $ofh sprintf("%-20s %8.3f%%\n", $word, $hfrq->{$word}) unless $used{$word}; 
-	}
+#	foreach my $word (sort {$hfrq->{$b} <=> $hfrq->{$a}} keys %$hfrq) {
+#	    print $ofh sprintf("%-20s %8.3f%%\n", $word, $hfrq->{$word}) unless $used{$word};
+#	}
 	close $ofh;
     }
     # generate new format
@@ -108,8 +108,9 @@ sub chord2json {
     close(ZT);
     open(ZT, ">output.json") or die "Cannot create output.json\n";
     foreach my $key (sort keys %$ztab) {
-	print ZT jsonize($key, $ztab->{$key});
+	push(@zt, jsonize($key, $ztab->{$key}));
     }
+    print ZT join(",\n", @zt);
     close(ZT);
 }
 
@@ -210,6 +211,62 @@ sub build_trigger {
     $ljson .= " " x 20 . '"to": {';
 }
 
+sub construct {
+    my($key, $chord_def) = @_;
+    if ($key eq "") { warn "Cannot construct a reference for an empty string\n"; next; }
+    my $str;
+    my $s = {};
+    $s->{type} = "basic";
+    $s->{from} = {"key_code"=>demap(substr($key, -1, 1))};
+    if (length($key) == 1) { $s->{to_if_alone} = [$s->{from}]; }
+    if ($key =~ /__/) {
+	my($variable) = demap(($key =~ /^(.*)__\S+/));
+	push(@{$s->{conditions}}, { type=>"variable_if", name=>"seq_$variable", value=>1 });
+    }
+    if ($chord_def->{blocked_by}) {
+	foreach my $variable (sort keys %{$chord_def->{blocked_by}}) {
+	    push(@{$s->{conditions}}, { type=>"variable_if", name=>"seq_$variable", value=>0 });
+	}
+    }
+    $s->{to} = [];
+    if ($chord_def->{output} eq ':') {
+	my($variable) = $chord_def->{prefix};
+	$s->{to} = [ { set_variable=>{ name=>"seq_$variable", value=> 0 } } ];
+    }
+    elsif ($chord_def->{output}) {
+	my(@modifiers);
+	foreach my $char (split(//, $chord_def->{output})) {
+	    if (is_modifier($char)) {
+		push(@modifiers, is_modifier($char));
+		next;
+	    }
+	    push(@{$s->{to}}, {"key_code"=>demap($char)});
+	    if (@modifiers) { push(@{$s->{to}}, {"modifiers", [@modifiers]}); }
+	    @modifiers=();
+	    if ($chord_def->{prefix}) {
+		warn "For key=$key $chord_def->{output}, taku=seq_$key and prefix=$chord_def->{prefix}\n";
+		my $local_prefix = $key;
+		$local_prefix =~ s/$chord_def->{prefix}__//;
+		$s->{to_after_key_up} = [ { set_variable=>{ name=>"seq_$local_prefix", value=> 0 } } ];
+	    }
+	}
+    }
+    else {
+	my $variable = $key;
+	$s->{to} = [ { set_variable=>{ name=>"seq_$variable", value=> 1 } } ];
+	if ($chord_def->{type} eq 'layer') {
+	    $s->{to_after_key_up} = [ { set_variable=>{ name=>"seq_$variable", value=> 0 } } ];
+	}
+	elsif ($chord_def->{type} ne 'nest') {
+	    $s->{to_after_key_up} = [ { set_variable=>{ name=>"seq_$key", value=> 0 } } ];
+#	    push(@{$s->{to}}, { set_variable=>{ name=>"seq_$key", value=> 0 } } );
+	    warn json_hashref($chord_def);
+	    warn "Output=$chord_def->{output} Key=$key Prefix=$chord_def->{prefix}\n";
+	    warn "No type defined for prefix $key generating $chord_def->{output}\n";
+	}
+    }
+    return $s;
+}
 
 sub demap {
     my($c) = @_;
@@ -248,7 +305,7 @@ sub expand_chord_def {
     my($str) = @_;
     chomp $str;
     $str =~ s/\#.*$//;
-    return $str if $str =~ /^\s*$/;
+    return undef if $str =~ /^\s*$/;
     while ($str =~ /\(([^\)]+)\)\*(\d+)/) {
 	my $repl = $1 x $2;
 	$str =~ s/\(([^\)]+)\)\*(\d+)/$repl/;
@@ -336,53 +393,6 @@ sub jsonize {
     return $str;
 }
 
-sub construct {
-    my($key, $chord_def) = @_;
-    if ($key eq "") { warn "Cannot construct a reference for an empty string\n"; next; }
-    my $str;
-    my $s = {};
-    $s->{type} = "basic";
-    $s->{from} = {"key_code"=>demap(substr($key, -1, 1))};
-#    if ($chord_def->{used_by}) {
-#	foreach my $variable (sort keys %{$chord_def->{used_by}}) {
-#	    push(@{$s->{conditions}}, { type=>"variable_if", name=>"seq_$variable", value=>1 });
-#	}
-#    }
-    if ($chord_def->{blocked_by}) {
-	foreach my $variable (sort keys %{$chord_def->{blocked_by}}) {
-	    push(@{$s->{conditions}}, { type=>"variable_if", name=>"seq_$variable", value=>0 });
-	}
-    }
-    $s->{to} = [];
-    if ($chord_def->{output} eq ':') {
-    }
-    elsif ($chord_def->{output}) {
-	my(@modifiers);
-	foreach my $char (split(//, $chord_def->{output})) {
-	    if (is_modifier($char)) {
-		push(@modifiers, is_modifier($char));
-		next;
-	    }
-	    elsif ($char eq "!") {
-		die "Didn't recognize ! as modifier\n";
-	    }
-	    push(@{$s->{to}}, {"key_code"=>demap($char)});
-	    if (@modifiers) { push(@{$s->{to}}, {"modifiers", [@modifiers]}); }
-	    @modifiers=();
-	}
-    }
-    else {
-	$s->{to} = [ { set_variable=>{ name=>"seq_$variable", value=> 1 } } ];
-	if ($chord_def->{type} eq 'layer') {
-	    $s->{to_after_key_up} = [ { set_variable=>{ name=>"seq_$variable", value=> 0 } } ];
-	}
-	elsif ($chord_def->{type} ne 'nest') {
-	    warn "No type defined for prefix $key generating $chord_def\n";
-	}
-    }
-    return $s;
-}
-
 sub read_frequency_table {
     my($fn) = @_;
     my $fh;
@@ -407,12 +417,14 @@ sub sequencer {
     my($ztab, $def) = @_;
     #    my(@defs) = expand_def($def);
     my(@defs) = (expand_chord_def($def));
+    return if $defs[0] eq '';
     if (scalar(@defs) > 1) {
 	foreach my $d (@defs) { generator($ztab, $d); }
 	return;
     }
     my($chord, $seq) = split(' ', $defs[0]);
     my(@chord_seq, $build_chord, $name);
+    my $colon = 0;
     foreach my $char (split(//, $chord)) {
 	$name = join('__', @chord_seq);
 	if ($char eq ':') { # nesting layer
@@ -425,6 +437,14 @@ sub sequencer {
 		    "because that conflicts with previous usage\n";
 	    }
 	    $ztab->{$name}{type} = 'nest';
+	    $colon = $name;
+	}
+	elsif ($colon) {
+	    push(@chord_seq, demap($char));
+	    $ztab->{$name}{type} = 'nest';
+	    $ztab->{$char}{blocked_by}{$name}++;
+	    
+	    $ztab->{$name}{used_by}{$char}++;
 	}
 	else { # non-nesting layer
 	    push(@chord_seq, demap($char));
@@ -433,13 +453,15 @@ sub sequencer {
 		    die "Chord definition $chord (generating $seq) cannot extend at $name ".
 			"because that conflicts with previous usage ($ztab->{$name}{type})\n";
 		}
-		$ztab->{$char}{used_by}{$name}++;
-		$ztab->{$name}{blocked_by}{$char}++;
+		$ztab->{$char}{blocked_by}{$name}++;
+		$ztab->{$name}{used_by}{$char}++;
 		$ztab->{$name}{type} = 'layer';
 	    }
 	}
     }
     $name = join('__', @chord_seq);
+    warn "Outputting $seq into $name (colon is $colon)\n";
     $ztab->{$name}{output} = $seq;
+    if ($colon) { $ztab->{$name}{prefix} = $colon; }
     return $ztab;
 }
