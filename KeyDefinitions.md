@@ -16,6 +16,8 @@ whitespace      separates chord from output sequence
 #               at the beginning of a line, begins a comment
 %               apply left_option to the next character
 ^               apply left_control to the next character
+*NNN            previous character repeated NNN times
+(xx)*NNN        previous sequence enclosed in parentheis repeated NNN times
 ~               apply function to the next character
 ```
 
