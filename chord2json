@@ -244,7 +244,7 @@ sub construct {
 	    if (@modifiers) { push(@{$s->{to}}, {"modifiers", [@modifiers]}); }
 	    @modifiers=();
 	    if ($chord_def->{prefix}) {
-		warn "For key=$key $chord_def->{output}, taku=seq_$key and prefix=$chord_def->{prefix}\n";
+#		warn "For key=$key $chord_def->{output}, taku=seq_$key and prefix=$chord_def->{prefix}\n";
 		my $local_prefix = $key;
 		$local_prefix =~ s/$chord_def->{prefix}__//;
 		$s->{to_after_key_up} = [ { set_variable=>{ name=>"seq_$local_prefix", value=> 0 } } ];
@@ -260,9 +260,9 @@ sub construct {
 	elsif ($chord_def->{type} ne 'nest') {
 	    $s->{to_after_key_up} = [ { set_variable=>{ name=>"seq_$key", value=> 0 } } ];
 #	    push(@{$s->{to}}, { set_variable=>{ name=>"seq_$key", value=> 0 } } );
-	    warn json_hashref($chord_def);
-	    warn "Output=$chord_def->{output} Key=$key Prefix=$chord_def->{prefix}\n";
-	    warn "No type defined for prefix $key generating $chord_def->{output}\n";
+#	    warn json_hashref($chord_def);
+#	    warn "Output=$chord_def->{output} Key=$key Prefix=$chord_def->{prefix}\n";
+#	    warn "No type defined for prefix $key generating $chord_def->{output}\n";
 	}
     }
     return $s;
@@ -460,7 +460,7 @@ sub sequencer {
 	}
     }
     $name = join('__', @chord_seq);
-    warn "Outputting $seq into $name (colon is $colon)\n";
+#    warn "Outputting $seq into $name (colon is $colon)\n";
     $ztab->{$name}{output} = $seq;
     if ($colon) { $ztab->{$name}{prefix} = $colon; }
     return $ztab;
