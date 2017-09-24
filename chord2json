@@ -93,24 +93,24 @@ sub chord2json {
 	print $ofh sprintf("Fraction remaining          %8.3f%%\n", 100*($sum-$savings)/$sum);
 	close $ofh;
 	open($ofh, ">missed.table");
-#	foreach my $word (sort {$hfrq->{$b} <=> $hfrq->{$a}} keys %$hfrq) {
-#	    print $ofh sprintf("%-20s %8.3f%%\n", $word, $hfrq->{$word}) unless $used{$word};
-#	}
+	foreach my $word (sort {$hfrq->{$b} <=> $hfrq->{$a}} keys %$hfrq) {
+	    print $ofh sprintf("%-20s %8.3f%%\n", $word, $hfrq->{$word}) unless $used{$word};
+	}
 	close $ofh;
     }
     # generate new format
-    open(ZT, ">output.ztab") or die "Cannot create output.ztab\n";
-    foreach my $key (sort keys %$ztab) {
-	print ZT "$key uk=(" . join(", ", sort keys %{$ztab->{$key}{used_by}}) . ") ";
-	print ZT "bk=(" . join(", ", sort keys %{$ztab->{$key}{blocked_by}}) . ") ";
-	print ZT "type=$ztab->{$key}{type} output=$ztab->{$key}{output}\n";
-    }
-    close(ZT);
+#    open(ZT, ">output.ztab") or die "Cannot create output.ztab\n";
+#    foreach my $key (sort keys %$ztab) {
+#	print ZT "$key uk=(" . join(", ", sort keys %{$ztab->{$key}{used_by}}) . ") ";
+#	print ZT "bk=(" . join(", ", sort keys %{$ztab->{$key}{blocked_by}}) . ") ";
+#	print ZT "type=$ztab->{$key}{type} output=$ztab->{$key}{output}\n";
+#    }
+#    close(ZT);
     open(ZT, ">output.json") or die "Cannot create output.json\n";
     foreach my $key (sort keys %$ztab) {
 	push(@zt, jsonize($key, $ztab->{$key}));
     }
-    print ZT join(",\n", @zt);
+    print ZT join(",\n", @zt) . "\n";
     close(ZT);
 }
 
@@ -389,7 +389,7 @@ sub json_value {
 sub jsonize {
     my($key, $chord_def) = @_;
     my $str;# = json_hashref($chord_def) . "\n";
-    $str.= json_hashref(construct($key, $chord_def)) . "\n";
+    $str.= json_hashref(construct($key, $chord_def));
     return $str;
 }
 
